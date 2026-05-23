@@ -1,24 +1,6 @@
 import { TrendingUp, TrendingDown, Users, DollarSign, Activity, Target } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-
-const mrrData = [
-  { month: 'Jan', mrr: 12000 }, { month: 'Feb', mrr: 15000 },
-  { month: 'Mar', mrr: 14500 }, { month: 'Apr', mrr: 18000 },
-  { month: 'May', mrr: 21000 }, { month: 'Jun', mrr: 24000 },
-]
-
-const userGrowth = [
-  { month: 'Jan', users: 120 }, { month: 'Feb', users: 180 },
-  { month: 'Mar', users: 240 }, { month: 'Apr', users: 310 },
-  { month: 'May', users: 410 }, { month: 'Jun', users: 520 },
-]
-
-const kpis = [
-  { label: 'MRR', value: '$24,000', change: '+14.3%', up: true, icon: DollarSign, color: '#0066FF' },
-  { label: 'Active Users', value: '520', change: '+26.8%', up: true, icon: Users, color: '#10B981' },
-  { label: 'Churn Rate', value: '2.4%', change: '-0.8%', up: false, icon: TrendingDown, color: '#EF4444' },
-  { label: 'Runway', value: '18 mo', change: 'Stable', up: true, icon: Target, color: '#F59E0B' },
-]
+import { useMetrics } from '../context/MetricsContext'
 
 function KPICard({ label, value, change, up, icon: Icon, color }) {
   return (
@@ -49,6 +31,47 @@ function KPICard({ label, value, change, up, icon: Icon, color }) {
 }
 
 export default function Dashboard() {
+  const { metrics } = useMetrics()
+
+  const kpis = [
+    {
+      label: 'MRR',
+      value: `$${Number(metrics.mrr).toLocaleString()}`,
+      change: metrics.mrrChange,
+      up: metrics.mrrChange.startsWith('+'),
+      icon: DollarSign, color: '#0066FF'
+    },
+    {
+      label: 'Active Users',
+      value: Number(metrics.activeUsers).toLocaleString(),
+      change: metrics.userChange,
+      up: metrics.userChange.startsWith('+'),
+      icon: Users, color: '#10B981'
+    },
+    {
+      label: 'Churn Rate',
+      value: metrics.churnRate,
+      change: 'this period',
+      up: false,
+      icon: TrendingDown, color: '#EF4444'
+    },
+    {
+      label: 'Runway',
+      value: `${metrics.runway} mo`,
+      change: 'Stable',
+      up: true,
+      icon: Target, color: '#F59E0B'
+    },
+  ]
+
+  const highlights = metrics.highlights
+    ? metrics.highlights.split('\n').filter(h => h.trim())
+    : []
+
+  const asks = metrics.asks
+    ? metrics.asks.split('\n').filter(a => a.trim())
+    : []
+
   return (
     <div>
       {/* Header */}
@@ -65,15 +88,13 @@ export default function Dashboard() {
             border: '1px solid var(--border)', background: 'white',
             fontSize: '0.82rem', color: 'var(--muted)', fontWeight: 500
           }}>
-            May 2026
+            {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
           </button>
           <button style={{
             padding: '0.5rem 1.2rem', borderRadius: 8,
             border: 'none', background: 'var(--blue)',
             fontSize: '0.82rem', color: 'white', fontWeight: 600
-          }}>
-            Export
-          </button>
+          }}>Export</button>
         </div>
       </div>
 
@@ -84,7 +105,6 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-        {/* MRR Chart */}
         <div style={{
           background: 'white', borderRadius: 12, padding: '1.5rem',
           border: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
@@ -98,10 +118,10 @@ export default function Dashboard() {
               background: '#E8F5E9', color: 'var(--green)',
               fontSize: '0.75rem', fontWeight: 600,
               padding: '3px 10px', borderRadius: 20
-            }}>+14.3% MoM</span>
+            }}>{metrics.mrrChange} MoM</span>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={mrrData}>
+            <AreaChart data={metrics.mrrHistory}>
               <defs>
                 <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#0066FF" stopOpacity={0.15} />
@@ -117,7 +137,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* User Growth */}
         <div style={{
           background: 'white', borderRadius: 12, padding: '1.5rem',
           border: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
@@ -127,7 +146,7 @@ export default function Dashboard() {
             <p style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>Total active users per month</p>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={userGrowth}>
+            <BarChart data={metrics.userHistory}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
@@ -140,54 +159,44 @@ export default function Dashboard() {
 
       {/* Bottom Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        {/* Key highlights */}
         <div style={{
           background: 'white', borderRadius: 12, padding: '1.5rem',
           border: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
         }}>
           <p style={{ fontWeight: 600, color: 'var(--black)', marginBottom: '1rem' }}>This Month's Highlights</p>
-          {[
-            { text: 'Closed 3 enterprise deals worth $8,400 ARR', color: 'var(--green)' },
-            { text: 'Launched v2.0 with AI-powered features', color: 'var(--blue)' },
-            { text: 'Hired 2 engineers, 1 growth lead', color: 'var(--blue)' },
-            { text: 'CAC dropped 18% through referral optimization', color: 'var(--green)' },
-          ].map((item, i) => (
+          {highlights.length > 0 ? highlights.map((item, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
               marginBottom: '0.75rem'
             }}>
               <div style={{
                 width: 6, height: 6, borderRadius: '50%',
-                background: item.color, marginTop: 5, flexShrink: 0
+                background: 'var(--blue)', marginTop: 5, flexShrink: 0
               }} />
-              <p style={{ fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.5 }}>{item.text}</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.5 }}>{item}</p>
             </div>
-          ))}
+          )) : (
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>No highlights yet. Fill in the Send Update form.</p>
+          )}
         </div>
 
-        {/* Asks */}
         <div style={{
           background: 'white', borderRadius: 12, padding: '1.5rem',
           border: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
         }}>
           <p style={{ fontWeight: 600, color: 'var(--black)', marginBottom: '1rem' }}>Investor Asks</p>
-          {[
-            { label: 'Introductions', text: 'Need 2 intros to Series A fintech investors', icon: '🤝' },
-            { label: 'Advice', text: 'Pricing strategy for enterprise tier', icon: '💡' },
-            { label: 'Hiring', text: 'Referrals for a senior backend engineer', icon: '👥' },
-          ].map((item, i) => (
+          {asks.length > 0 ? asks.map((ask, i) => (
             <div key={i} style={{
               display: 'flex', gap: '0.75rem', marginBottom: '0.9rem',
               padding: '0.75rem', background: 'var(--bg)',
               borderRadius: 8, border: '1px solid var(--border)'
             }}>
-              <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
-              <div>
-                <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--blue)', marginBottom: '0.2rem' }}>{item.label}</p>
-                <p style={{ fontSize: '0.83rem', color: 'var(--text)' }}>{item.text}</p>
-              </div>
+              <span style={{ fontSize: '1.1rem' }}>🤝</span>
+              <p style={{ fontSize: '0.83rem', color: 'var(--text)' }}>{ask}</p>
             </div>
-          ))}
+          )) : (
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>No asks yet. Fill in the Send Update form.</p>
+          )}
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMetrics, defaultMetrics } from '../context/MetricsContext'
 import { Send, CheckCircle } from 'lucide-react'
 
 const investors = [
@@ -16,8 +17,9 @@ const emptyMetrics = {
 }
 
 export default function SendUpdate() {
-  const [metrics, setMetrics] = useState(emptyMetrics)
-  const [selected, setSelected] = useState([])
+const { metrics: savedMetrics, updateMetrics } = useMetrics()
+const [metrics, setMetrics] = useState({ ...defaultMetrics, ...savedMetrics })
+const [selected, setSelected] = useState([])
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -30,6 +32,7 @@ export default function SendUpdate() {
   const update = (key, val) => setMetrics(m => ({ ...m, [key]: val }))
 
   const generateReport = async () => {
+	updateMetrics(metrics)
     setLoading(true)
     try {
       const prompt = `You are writing a monthly investor update for a startup founder.
