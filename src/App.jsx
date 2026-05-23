@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, Send, Settings,
+  LayoutDashboard, Users, Send, Settings as SettingsIcon,
   TrendingUp, Bell, Search, ChevronDown
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Investors from './pages/Investors'
 import SendUpdate from './pages/SendUpdate'
+import Settings from './pages/Settings'
 import './index.css'
 
 const navItems = [
@@ -81,8 +82,8 @@ export default function App() {
               background: isActive ? 'var(--blue-light)' : 'transparent',
               color: isActive ? 'var(--blue)' : 'var(--muted)',
             })}>
-              <Settings size={17} />
-              Settings
+<SettingsIcon size={17} />         
+     Settings
             </NavLink>
           </div>
 
@@ -135,8 +136,8 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/investors" element={<Investors />} />
-              <Route path="/send" element={<SendUpdate />} />
-            </Routes>
+<Route path="/send" element={<SendUpdate />} />
+<Route path="/settings" element={<Settings />} />            </Routes>
           </div>
         </main>
       </div>
