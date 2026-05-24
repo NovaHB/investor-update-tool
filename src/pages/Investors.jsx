@@ -45,7 +45,12 @@ function StatusBadge({ status }) {
 }
 
 export default function Investors() {
-  const [investors, setInvestors] = useState(initialInvestors)
+  const [investors, setInvestors] = useState(() => {
+  try {
+    const saved = localStorage.getItem('investoriq_investors')
+    return saved ? JSON.parse(saved) : initialInvestors
+  } catch { return initialInvestors }
+})
   const [selected, setSelected] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', firm: '', email: '', interest: 50, status: 'Cold', tier: 'Prospect' })
@@ -59,14 +64,19 @@ export default function Investors() {
   }
 
   const addInvestor = () => {
-    if (!form.name || !form.email) return
-    setInvestors(prev => [...prev, { ...form, id: Date.now(), interest: Number(form.interest) }])
-    setForm({ name: '', firm: '', email: '', interest: 50, status: 'Cold', tier: 'Prospect' })
-    setShowForm(false)
-  }
+  if (!form.name || !form.email) return
+  const updated = [...investors, { ...form, id: Date.now(), interest: Number(form.interest) }]
+  setInvestors(updated)
+  localStorage.setItem('investoriq_investors', JSON.stringify(updated))
+  setForm({ name: '', firm: '', email: '', interest: 50, status: 'Cold', tier: 'Prospect' })
+  setShowForm(false)
+}
 
-  const deleteInvestor = (id) => setInvestors(prev => prev.filter(i => i.id !== id))
-
+const deleteInvestor = (id) => {
+  const updated = investors.filter(i => i.id !== id)
+  setInvestors(updated)
+  localStorage.setItem('investoriq_investors', JSON.stringify(updated))
+}
   return (
     <div>
       {/* Header */}

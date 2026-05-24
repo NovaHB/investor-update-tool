@@ -2,13 +2,12 @@ import { useState } from 'react'
 import { useMetrics, defaultMetrics } from '../context/MetricsContext'
 import { Send, CheckCircle } from 'lucide-react'
 
-const investors = [
-  { id: 1, name: 'Sarah Chen', firm: 'Sequoia Capital', email: 'sarah@sequoia.com', interest: 85 },
-  { id: 2, name: 'Marcus Williams', firm: 'a16z', email: 'marcus@a16z.com', interest: 72 },
-  { id: 3, name: 'Priya Patel', firm: 'YC Alumni Fund', email: 'priya@ycfund.com', interest: 60 },
-  { id: 4, name: 'James Okafor', firm: 'TechStars', email: 'james@techstars.com', interest: 45 },
-  { id: 5, name: 'Elena Rossi', firm: 'Index Ventures', email: 'elena@indexventures.com', interest: 30 },
-]
+const investors = (() => {
+  try {
+    const saved = localStorage.getItem('investoriq_investors')
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+})()
 
 const emptyMetrics = {
   mrr: '', mrrChange: '', activeUsers: '', userChange: '',
@@ -32,67 +31,62 @@ const [selected, setSelected] = useState([])
   const update = (key, val) => setMetrics(m => ({ ...m, [key]: val }))
 
   const generateReport = async () => {
-	updateMetrics(metrics)
-    setLoading(true)
-    try {
-      const prompt = `You are writing a monthly investor update for a startup founder.
+  updateMetrics(metrics)
+  setLoading(true)
+  try {
+    const settings = JSON.parse(localStorage.getItem('investoriq_settings') || '{}')
 
-Based on these metrics, write a professional, concise investor update email:
-
-MRR: ${metrics.mrr} (${metrics.mrrChange} MoM)
-Active Users: ${metrics.activeUsers} (${metrics.userChange} MoM)
-Churn Rate: ${metrics.churnRate}
-Runway: ${metrics.runway} months
-Cash Position: ${metrics.cashPosition}
-Burn Rate: ${metrics.burnRate}/month
-
-Key Highlights this month:
-${metrics.highlights}
-
-Challenges:
-${metrics.challenges}
-
-Focus for next month:
-${metrics.nextMonth}
-
-Asks from investors:
-${metrics.asks}
-
-Write a warm, professional investor update. Structure it as:
-- Subject line (on first line, prefixed with "Subject: ")
-- Brief greeting
-- Performance snapshot with key numbers
-- Highlights
-- Challenges (be honest but confident)
-- Next month focus
-- Asks
-- Closing
-
-Keep it under 400 words. Write like a founder, not a consultant.`
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+    const response = await fetch('http://localhost:8000/generate-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...metrics,
+        companyName: settings.companyName || 'My Company',
+        founderName: settings.founderName || 'Founder'
       })
+    })
 
-      const data = await response.json()
-      setReport(data.content[0].text)
-      setStep(3)
-    } catch (err) {
-      setReport('Could not generate report. Please check your connection and try again.')
-    }
-    setLoading(false)
+    const data = await response.json()
+    if (data.error) throw new Error(data.error)
+    setReport(data.report)
+    setStep(3)
+  } catch (err) {
+    setReport('Could not generate report. Make sure the backend is running and try again.')
+    setStep(3)
   }
+  setLoading(false)
+}
 
-  const handleSend = () => {
+  const handleSend = async () => {
+  try {
+    const settings = JSON.parse(localStorage.getItem('investoriq_settings') || '{}')
+    const selectedInvestors = investors.filter(i => selected.includes(i.id))
+    const recipients = selectedInvestors.map(i => i.email)
+
+    const lines = report.split('\n')
+    const subjectLine = lines.find(l => l.startsWith('Subject:'))
+    const subject = subjectLine ? subjectLine.replace('Subject:', '').trim() : 'Monthly Investor Update'
+
+    const response = await fetch('http://localhost:8000/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        report,
+        subject,
+        recipients,
+        senderEmail: settings.senderEmail || '',
+        appPassword: settings.appPassword || ''
+      })
+    })
+
+    const data = await response.json()
+    if (data.error) throw new Error(data.error)
     setSent(true)
     setTimeout(() => { setSent(false); setStep(1); setReport(''); setMetrics(emptyMetrics); setSelected([]) }, 3000)
+  } catch (err) {
+    alert('Email delivery failed. Check your email settings and try again.')
   }
+}
 
   const inputStyle = {
     width: '100%', padding: '0.55rem 0.8rem',
